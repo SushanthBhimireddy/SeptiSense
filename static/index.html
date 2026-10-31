@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SeptiSense Dashboard</title>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#0f172a;--mute:#64748b;--line:#e2e8f0;--blue:#2563eb;--green:#16a34a;--amber:#d97706;--red:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1220;--card:#111b2e;--ink:#e5ecf6;--mute:#94a3b8;--line:#22314a}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:22px}
+h2{margin:0 0 10px;font-size:16px}
+main{max-width:1200px;margin:auto;padding:18px}
+.grid{display:grid;gap:14px}
+.g5{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.big{font-size:30px;font-weight:700;color:var(--blue)}
+.mute{color:var(--mute);font-size:12px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:var(--mute)}
+.ok{background:var(--green)}.warn{background:var(--amber)}.bad{background:var(--red)}
+.banner{padding:10px 14px;border-radius:10px;margin-bottom:10px;font-size:14px;font-weight:600}
+.b-red{background:#fee2e2;color:#991b1b}.b-amber{background:#fef3c7;color:#92400e}.b-blue{background:#dbeafe;color:#1e40af}
+canvas{width:100%;height:170px;display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.riskbar{height:16px;border-radius:8px;background:var(--line);position:relative;overflow:hidden;margin:8px 0}
+.riskfill{height:100%;background:var(--green);width:0;transition:width .4s,background .4s}
+.thr{position:absolute;top:0;bottom:0;width:2px;background:var(--ink)}
+label{display:block;margin:8px 0 2px;font-size:13px}
+input[type=number]{width:100px;padding:4px}
+input[type=text]{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit;font-size:13px}
+button{padding:6px 12px;border:0;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer;font-weight:600}
+button.sm{padding:2px 8px;font-size:12px}
+button.grey{background:var(--mute)}button.red{background:var(--red)}
+a{color:var(--blue)}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.tab.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>SeptiSense — Patient Monitoring &amp; Early-Warning Prototype</h1>
+  <div><span id="conn" class="pill">CONNECTING...</span> <span class="mute" id="clock"></span></div>
+</header>
+<main>
+<div class="tabs">
+  <button id="tabLive" class="tab on" onclick="showView('live')">Live monitoring</button>
+  <button id="tabHist" class="tab" onclick="showView('hist')">Test history</button>
+</div>
+
+<div id="viewLive">
+<div id="banners"></div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Test session</h2>
+  <div id="sessActive" style="display:none">
+    <span class="pill ok">RECORDING</span> <b id="sLabel"></b><span class="mute" id="sMeta"></span>
+    <div class="mute" id="sNote"></div>
+    <div class="row"><button class="red" onclick="endTest()">End test</button></div>
+  </div>
+  <div id="sessIdle" class="mute">No test is running. Live readings still appear below, but they are stored as <b>unassigned</b> and will not show in Test history. Start a test to record a patient.</div>
+  <div class="row">
+    <input type="text" id="newLabel" maxlength="60" placeholder="Patient / subject ID (not a real name)" size="34">
+    <input type="text" id="newNote" maxlength="500" placeholder="Note (optional)" size="34">
+    <button id="startBtn" onclick="startTest()">Start new test</button>
+    <span class="mute" id="sessMsg"></span>
+  </div>
+  <p class="mute">Every test is saved on this laptop. Starting a new test begins with a clean slate: the risk estimate only uses readings from the current test. Use an ID or nickname &mdash; the data is stored without encryption or login.</p>
+</div>
+
+<div class="grid g5" style="margin-bottom:14px">
+  <div class="card"><div class="mute">Heart rate (pulse oximeter)</div><div class="big" id="vHR">--</div><div class="mute" id="vHRs">waiting for steady pulse</div></div>
+  <div class="card"><div class="mute">Heart rate (ECG, experimental)</div><div class="big" id="vECG">--</div><div class="mute" id="vECGs">leads off</div></div>
+  <div class="card"><div class="mute">SpO2 (estimate)</div><div class="big" id="vSpO2">--</div><div class="mute" id="vSpO2s"></div></div>
+  <div class="card"><div class="mute">Surface temperature (MLX90614)</div><div class="big" id="vTemp">--</div><div class="mute" id="vTemps"></div></div>
+  <div class="card"><div class="mute">Temperature LED</div><div class="big" id="vLed">--</div><div class="mute">ON ≥ 25°C, OFF ≤ 24°C</div></div>
+</div>
+
+<div class="grid g2" style="margin-bottom:14px">
+  <div class="card">
+    <h2>Sepsis risk estimate (experimental)</h2>
+    <div style="display:flex;align-items:baseline;gap:12px"><span class="big" id="risk">--</span><span id="level" class="pill">NO PREDICTION</span></div>
+    <div class="riskbar"><div class="riskfill" id="riskfill" style="width:0"></div><div class="thr" id="thr" style="left:50%"></div></div>
+    <div class="mute" id="riskinfo">Waiting for first prediction...</div>
+    <p class="mute">Forecast horizon: probability that sepsis onset (Sepsis-3, as labelled in the training data) occurs within the next <b id="hor">6</b> hours. Marker = alert threshold.</p>
+    <div class="mute" id="inputs"></div>
+  </div>
+  <div class="card">
+    <h2>Data quality &amp; connectivity</h2>
+    <table id="dq"></table>
+    <p class="mute" id="dqinfo"></p>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-bottom:14px">
+  <div class="card"><h2>Heart rate (BPM)</h2><canvas id="cHR"></canvas></div>
+  <div class="card"><h2>SpO2 (%)</h2><canvas id="cSpO2"></canvas></div>
+  <div class="card"><h2>Surface temperature (°C)</h2><canvas id="cTemp"></canvas></div>
+  <div class="card"><h2>Predicted risk history</h2><canvas id="cRisk"></canvas></div>
+</div>
+
+<div class="grid g2" style="margin-bottom:14px">
+  <div class="card">
+    <h2>Alert settings</h2>
+    <label><input type="checkbox" id="cfgEnabled" checked> Alerts enabled</label>
+    <label>Alert threshold (risk 0–1)</label><input type="number" step="0.01" min="0.001" max="0.999" id="cfgThr" value="0.5">
+    <label>Consecutive predictions required</label><input type="number" step="1" min="1" max="10" id="cfgCons" value="2">
+    <label>Cooldown (seconds)</label><input type="number" step="30" min="0" id="cfgCool" value="600">
+    <label>Temperature offset (°C) added to surface reading before the model</label><input type="number" step="0.1" id="cfgOff" value="0">
+    <p class="mute">The model was trained on <b>core</b> temperature. A skin/object reading is lower, so an offset is a rough demo correction only.</p>
+    <button onclick="saveCfg()">Save settings</button> <span class="mute" id="cfgMsg"></span>
+  </div>
+  <div class="card">
+    <h2>Alert history (current test)</h2>
+    <table id="alerts"></table>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Model card</h2>
+  <div id="model" class="mute">Loading...</div>
+</div>
+</div>
+
+<div id="viewHist" style="display:none">
+  <div class="banner b-blue">Saved tests are stored on this laptop in septisense.db. Risk values come from the experimental model and are not clinical results.</div>
+  <div class="card" style="margin-bottom:14px">
+    <h2>Saved tests</h2>
+    <div class="scroll"><table id="sessTable"></table></div>
+  </div>
+  <div class="card" id="sessDetail" style="display:none;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2 id="dTitle"></h2><button class="sm grey" onclick="closeDetail()">Close</button></div>
+    <div class="mute" id="dMeta"></div><div class="mute" id="dNote" style="margin-bottom:10px"></div>
+    <div class="grid g2">
+      <div><h2>Heart rate (BPM)</h2><canvas id="dHR"></canvas></div>
+      <div><h2>SpO2 (%)</h2><canvas id="dSpO2"></canvas></div>
+      <div><h2>Surface temperature (°C)</h2><canvas id="dTemp"></canvas></div>
+      <div><h2>Predicted risk (dashed line = current alert threshold)</h2><canvas id="dRisk"></canvas></div>
+    </div>
+    <h2 style="margin-top:14px">Alerts in this test</h2>
+    <table id="dAlerts"></table>
+  </div>
+</div>
+
+<p class="mute">Educational and research prototype. Not a medical device and not clinically validated. Do not use for diagnosis or treatment decisions.</p>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmtT=t=>new Date(t*1000).toLocaleTimeString();
+async function J(u,opt){const r=await fetch(u,opt);if(!r.ok)throw new Error(r.status);return r.json();}
+
+function chart(canvas,series,opts){
+  const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;
+  canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext("2d");c.scale(dpr,dpr);
+  c.clearRect(0,0,w,h);
+  const style=getComputedStyle(document.body);const mute=style.getPropertyValue("--mute"),line=style.getPropertyValue("--line");
+  let pts=series.flatMap(s=>s.data.filter(p=>p.y!=null));
+  if(pts.length<2){c.fillStyle=mute;c.font="13px sans-serif";c.fillText("No data yet",10,24);return;}
+  let x0=Math.min(...pts.map(p=>p.x)),x1=Math.max(...pts.map(p=>p.x));
+  let y0=opts.min!=null?opts.min:Math.min(...pts.map(p=>p.y)),y1=opts.max!=null?opts.max:Math.max(...pts.map(p=>p.y));
+  if(y1-y0<(opts.minRange||1)){const m=(y0+y1)/2;y0=m-(opts.minRange||1)/2;y1=m+(opts.minRange||1)/2;}
+  const L=40,B=18,T=6,R=6,X=x=>L+(x-x0)/Math.max(x1-x0,1e-9)*(w-L-R),Y=y=>T+(1-(y-y0)/(y1-y0))*(h-T-B);
+  c.strokeStyle=line;c.fillStyle=mute;c.font="11px sans-serif";c.lineWidth=1;
+  for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4,yy=Y(v);c.beginPath();c.moveTo(L,yy);c.lineTo(w-R,yy);c.stroke();c.fillText(v.toFixed(opts.dec||0),2,yy+4);}
+  c.fillText(fmtT(x0),L,h-4);c.textAlign="right";c.fillText(fmtT(x1),w-R,h-4);c.textAlign="left";
+  if(opts.hline!=null&&opts.hline>=y0&&opts.hline<=y1){c.setLineDash([5,4]);c.strokeStyle="#dc2626";c.beginPath();c.moveTo(L,Y(opts.hline));c.lineTo(w-R,Y(opts.hline));c.stroke();c.setLineDash([]);}
+  series.forEach(s=>{c.strokeStyle=s.color;c.lineWidth=2;c.beginPath();let pen=false;
+    s.data.forEach(p=>{if(p.y==null){pen=false;return;}const px=X(p.x),py=Y(p.y);if(!pen){c.moveTo(px,py);pen=true;}else c.lineTo(px,py);});c.stroke();});
+}
+
+function setBanners(st,lat){
+  const b=[];
+  b.push(`<div class="banner b-blue">Experimental prototype &mdash; not clinically validated. Risk estimates are for demonstration only.</div>`);
+  if(!st.model_loaded)b.push(`<div class="banner b-red">No ML model loaded: ${st.model_error||""} Predictions are disabled (nothing is faked).</div>`);
+  if(st.demo_time_compression)b.push(`<div class="banner b-red">DEMO TIME COMPRESSION: each model &ldquo;hour&rdquo; = ${st.bin_seconds} s of real time. Predictions are NOT clinically meaningful.</div>`);
+  if(st.devices.some(d=>d.source==="simulator"))b.push(`<div class="banner b-red">SIMULATED DATA is being received (device id starts with &ldquo;sim&rdquo;) &mdash; not real sensor readings.</div>`);
+  b.push(`<div class="banner b-amber">The model was trained on core body temperature; the MLX90614 measures <b>surface</b> temperature (offset currently ${Number(st.config.temp_offset_c).toFixed(1)}&deg;C). Treat live risk values as an integration demo.</div>`);
+  $("banners").innerHTML=b.join("");
+}
+
+function setVal(id,v,unit,dec){ $(id).textContent=(v==null)?"--":(Number(v).toFixed(dec)+unit); }
+
+async function refresh(){
+  try{
+    const [st,lat,hist,preds,alerts]=await Promise.all([J("/api/status"),J("/api/latest"),J("/api/history?minutes=60"),J("/api/predictions?limit=300"),J("/api/alerts?limit=30&scope=current")]);
+    setBanners(st,lat);
+    renderSession(st);
+    const dev=st.devices[0];
+    $("conn").textContent=dev?(dev.connected?"DEVICE CONNECTED":"DEVICE OFFLINE ("+Math.round(dev.last_seen_s_ago)+" s)"):"NO DEVICE DATA";
+    $("conn").className="pill "+(dev&&dev.connected?"ok":"bad");
+    $("clock").textContent=new Date().toLocaleString();
+
+    const t=lat.telemetry;const fresh=dev&&dev.connected;
+    if(t&&fresh){
+      setVal("vHR",t.hr,"",0);$("vHRs").textContent=t.hr==null?(t.finger?"waiting for steady pulse":"no finger detected"):"valid";
+      setVal("vECG",t.ecg_bpm,"",0);$("vECGs").textContent=t.ecg_bpm==null?(t.lead_off?"leads off":"not reliable"):"experimental";
+      setVal("vSpO2",t.spo2,"%",0);$("vSpO2s").textContent=t.spo2==null?"not valid":"valid";
+      setVal("vTemp",t.obj,"\u00B0C",1);$("vTemps").textContent=t.obj==null?"sensor error":("ambient "+(t.amb==null?"--":t.amb.toFixed(1)+"\u00B0C"));
+      $("vLed").textContent=t.led?"ON":"OFF";
+    }else{["vHR","vECG","vSpO2","vTemp","vLed"].forEach(i=>$(i).textContent="--");["vHRs","vECGs","vSpO2s","vTemps"].forEach(i=>$(i).innerHTML="&nbsp;");}
+
+    // risk
+    const p=lat.prediction;const thr=st.config.alert_threshold;
+    $("hor").textContent=st.horizon_hours;
+    $("thr").style.left=(Math.min(thr,1)*100)+"%";
+    if(p&&p.status==="ok"&&fresh){
+      $("risk").textContent=(p.risk*100).toFixed(1)+"%";
+      $("level").textContent=p.level;$("level").className="pill "+(p.level==="HIGH"?"bad":p.level==="ELEVATED"?"warn":"ok");
+      $("riskfill").style.width=Math.min(p.risk*100,100)+"%";$("riskfill").style.background=p.level==="HIGH"?"var(--red)":p.level==="ELEVATED"?"var(--amber)":"var(--green)";
+      $("riskinfo").textContent="Updated "+fmtT(p.ts)+" | bins used: "+p.bins_used+" ("+p.bin_seconds+" s each)";
+      $("inputs").textContent="Model inputs (latest bin): HR "+p.inputs.HR+", SpO2 "+p.inputs.O2Sat+", Temp "+p.inputs.Temp_model_input+"\u00B0C (after offset)";
+    }else{
+      $("risk").textContent="--";$("level").textContent="NO PREDICTION";$("level").className="pill";$("riskfill").style.width="0";
+      $("riskinfo").textContent=!fresh?"Device offline.":(p?(p.reason||p.status):"Waiting for first prediction...");$("inputs").textContent="";
+    }
+
+    // data quality table
+    let rows="<tr><th>Signal</th><th>Hardware</th><th>Valid (5 min)</th><th>Last valid</th></tr>";
+    if(dev)for(const [n,s] of Object.entries(dev.sensors)){
+      rows+=`<tr><td>${n}</td><td><span class="pill ${s.hardware_ok?"ok":"bad"}">${s.hardware_ok?"OK":"CHECK"}</span></td><td>${s.valid_pct}%</td><td>${s.last_valid_s_ago==null?"never":Math.round(s.last_valid_s_ago)+" s ago"}</td></tr>`;}
+    $("dq").innerHTML=rows;
+    $("dqinfo").textContent=dev?`Samples in last 5 min: ${dev.samples_5min} | Finger on pulse sensor: ${dev.finger_present?"yes":"no"} | Last packet ${Math.round(dev.last_seen_s_ago)} s ago`:"No telemetry received yet.";
+
+    // charts
+    const H=hist.points;
+    if(view==="live"){
+    chart($("cHR"),[{color:"#2563eb",data:H.map(r=>({x:r.ts,y:r.hr}))},{color:"#f59e0b",data:H.map(r=>({x:r.ts,y:r.ecg_bpm}))}],{minRange:20});
+    chart($("cSpO2"),[{color:"#16a34a",data:H.map(r=>({x:r.ts,y:r.spo2}))}],{min:85,max:100,minRange:5});
+    chart($("cTemp"),[{color:"#dc2626",data:H.map(r=>({x:r.ts,y:r.obj}))}],{minRange:2,dec:1});
+    const R=preds.filter(q=>q.status==="ok").reverse();
+    chart($("cRisk"),[{color:"#7c3aed",data:R.map(q=>({x:q.ts,y:q.risk*100}))}],{min:0,minRange:10,hline:thr*100,dec:0});
+    }
+
+    // alerts
+    let ar="<tr><th>Time</th><th>Type</th><th>Message</th><th></th></tr>";
+    alerts.forEach(a=>{ar+=`<tr><td>${new Date(a.ts*1000).toLocaleString()}</td><td><span class="pill ${a.level==="HIGH"?"bad":"warn"}">${a.type}</span></td><td>${esc(a.message)}</td><td>${a.acknowledged?"ack":`<button class="sm" onclick="ack(${a.id})">Ack</button>`}</td></tr>`;});
+    if(!alerts.length)ar+="<tr><td colspan=4 class='mute'>No alerts.</td></tr>";
+    $("alerts").innerHTML=ar;
+  }catch(e){$("conn").textContent="BACKEND UNREACHABLE";$("conn").className="pill bad";}
+}
+
+let cfgLoaded=false;
+async function loadCfg(){const c=await J("/api/config");$("cfgEnabled").checked=!!c.alert_enabled;$("cfgThr").value=c.alert_threshold;$("cfgCons").value=c.consecutive_required;$("cfgCool").value=c.cooldown_seconds;$("cfgOff").value=c.temp_offset_c;cfgLoaded=true;}
+async function saveCfg(){
+  const body={alert_enabled:$("cfgEnabled").checked?1:0,alert_threshold:+$("cfgThr").value,consecutive_required:+$("cfgCons").value,cooldown_seconds:+$("cfgCool").value,temp_offset_c:+$("cfgOff").value};
+  await J("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  $("cfgMsg").textContent="Saved.";setTimeout(()=>$("cfgMsg").textContent="",2000);refresh();
+}
+async function ack(id){await J("/api/alerts/ack",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});refresh();}
+
+async function loadModel(){
+  try{
+    const m=await J("/api/model");
+    if(!m.loaded||!m.metrics){$("model").textContent=m.error||"No model information available.";return;}
+    const me=m.metrics.meta,rs=m.metrics.results;
+    let h=`<b>Dataset:</b> ${me.dataset} (<a href="${me.dataset_url}" target="_blank">link</a>)<br><b>Target:</b> ${me.label_definition}<br><b>Inputs:</b> ${me.input_signals.join(", ")} (+ rolling 6-bin statistics and trends)<br><b>Split:</b> ${me.split}<br><b>Trained:</b> ${me.trained_at}<br><br>`;
+    h+="<table><tr><th>Held-out set</th><th>Patients</th><th>Prevalence</th><th>AUROC</th><th>AUPRC</th><th>Sens @thr</th><th>Spec @thr</th><th>Brier</th></tr>";
+    rs.forEach(r=>{h+=`<tr><td>${r.set}</td><td>${r.patients}</td><td>${(r.prevalence*100).toFixed(2)}%</td><td>${r.auroc==null?"-":r.auroc.toFixed(3)}${r.auroc_95ci?" ("+r.auroc_95ci.map(x=>x.toFixed(3)).join("&ndash;")+")":""}</td><td>${r.auprc==null?"-":r.auprc.toFixed(3)}</td><td>${r.row_sensitivity==null?"-":r.row_sensitivity.toFixed(2)}</td><td>${r.row_specificity==null?"-":r.row_specificity.toFixed(2)}</td><td>${r.brier==null?"-":r.brier.toFixed(4)}</td></tr>`;});
+    h+="</table>";
+    if(me.sample_patients_limit)h+=`<p class="banner b-red">This model was trained on a SMALL SUBSET (${me.sample_patients_limit} patients per set) for testing.</p>`;
+    $("model").innerHTML=h;
+  }catch(e){}
+}
+
+loadCfg();loadModel();refresh();setInterval(refresh,3000);
+window.addEventListener("resize",refresh);
+
+// ---------------------------------------------------------------- helpers
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDT=t=>new Date(t*1000).toLocaleString();
+function fmtDur(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
+  return h?`${h} h ${m} min`:(m?`${m} min ${s} s`:`${s} s`);}
+const num=(v,d)=>v==null?"--":Number(v).toFixed(d);
+async function POST(u,body){
+  const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.status);return j;}
+
+// ------------------------------------------------------- test sessions (live)
+let view="live",ACTIVE=null;
+function renderSession(st){
+  ACTIVE=st.active_session;
+  $("sessActive").style.display=ACTIVE?"block":"none";
+  $("sessIdle").style.display=ACTIVE?"none":"block";
+  $("startBtn").textContent=ACTIVE?"End this test & start a new one":"Start new test";
+  if(ACTIVE){
+    $("sLabel").textContent=ACTIVE.label;
+    $("sMeta").textContent=` started ${fmtDT(ACTIVE.started)} \u2022 running ${fmtDur(st.server_time-ACTIVE.started)} \u2022 ${ACTIVE.n_samples} readings saved`;
+    $("sNote").textContent=ACTIVE.note||"";
+  }
+}
+async function startTest(){
+  if(ACTIVE&&!confirm(`End "${ACTIVE.label}" and start a new test? The finished test stays saved in Test history.`))return;
+  try{
+    await POST("/api/sessions/start",{label:$("newLabel").value,note:$("newNote").value});
+    $("newLabel").value="";$("newNote").value="";$("sessMsg").textContent="";
+  }catch(e){$("sessMsg").textContent="Could not start: "+e.message;}
+  refresh();
+}
+async function endTest(){
+  try{await POST("/api/sessions/end");}catch(e){$("sessMsg").textContent=e.message;}
+  refresh();
+}
+
+// --------------------------------------------------------------- tabs
+function showView(v){
+  view=v;
+  $("viewLive").style.display=v==="live"?"block":"none";
+  $("viewHist").style.display=v==="hist"?"block":"none";
+  $("tabLive").className="tab"+(v==="live"?" on":"");$("tabHist").className="tab"+(v==="hist"?" on":"");
+  if(v==="hist")loadSessions();else refresh();
+}
+
+// --------------------------------------------------------- test history
+let SESS={},OPEN_ID=null;
+async function loadSessions(){
+  try{
+    const d=await J("/api/sessions?limit=300");SESS={};
+    let h="<tr><th>#</th><th>Test / subject</th><th>Started</th><th>Duration</th><th>Readings</th><th>Avg HR</th><th>Avg SpO2</th><th>Avg surf. temp</th><th>Peak risk</th><th>Alerts</th><th>Data</th><th>Export CSV</th><th></th></tr>";
+    d.sessions.forEach(s=>{
+      SESS[s.id]=s;const running=s.ended==null;
+      const dur=(s.ended||d.server_time)-s.started;
+      h+=`<tr><td>${s.id}</td><td><b>${esc(s.label)}</b>${running?' <span class="pill ok">RECORDING</span>':""}<div class="mute">${esc(s.note)}</div></td>`+
+         `<td>${fmtDT(s.started)}</td><td>${fmtDur(dur)}</td><td>${s.n_samples}</td><td>${num(s.avg_hr,0)}</td><td>${num(s.avg_spo2,0)}</td><td>${num(s.avg_temp,1)}</td>`+
+         `<td>${s.max_risk==null?"--":(s.max_risk*100).toFixed(1)+"%"}</td><td>${s.n_alerts}${s.n_risk_alerts?` (${s.n_risk_alerts} risk)`:""}</td>`+
+         `<td>${s.n_sim>0?'<span class="pill bad">SIMULATED</span>':(s.n_samples?'<span class="pill ok">Device</span>':"--")}</td>`+
+         `<td><a href="/api/sessions/export?id=${s.id}&kind=telemetry">vitals</a> &middot; <a href="/api/sessions/export?id=${s.id}&kind=predictions">risk</a> &middot; <a href="/api/sessions/export?id=${s.id}&kind=alerts">alerts</a></td>`+
+         `<td style="white-space:nowrap"><button class="sm" onclick="viewSession(${s.id})">View</button> <button class="sm grey" onclick="editSession(${s.id})">Edit</button> <button class="sm red" onclick="delSession(${s.id})">Delete</button></td></tr>`;
+    });
+    if(!d.sessions.length)h+="<tr><td colspan=13 class='mute'>No tests recorded yet. Go to Live monitoring and press &ldquo;Start new test&rdquo;.</td></tr>";
+    $("sessTable").innerHTML=h;
+  }catch(e){$("sessTable").innerHTML="<tr><td class='mute'>Could not load tests: "+esc(e.message)+"</td></tr>";}
+}
+async function viewSession(id){
+  try{
+    const d=await J("/api/sessions/detail?id="+id);OPEN_ID=id;const s=d.session;
+    $("sessDetail").style.display="block";
+    $("dTitle").textContent=`Test #${s.id} \u2014 ${s.label}`;
+    $("dMeta").textContent=`${fmtDT(s.started)} \u2192 ${s.ended?fmtDT(s.ended):"still recording"} (${fmtDur((s.ended||d.server_time)-s.started)}) \u2022 ${s.n_samples} readings \u2022 `+
+      `peak risk ${s.max_risk==null?"--":(s.max_risk*100).toFixed(1)+"%"} \u2022 ${s.n_alerts} alert(s)`+(s.n_sim>0?" \u2022 SIMULATED DATA":"");
+    $("dNote").textContent=s.note||"";
+    const T=d.telemetry;
+    chart($("dHR"),[{color:"#2563eb",data:T.map(r=>({x:r.ts,y:r.hr}))},{color:"#f59e0b",data:T.map(r=>({x:r.ts,y:r.ecg_bpm}))}],{minRange:20});
+    chart($("dSpO2"),[{color:"#16a34a",data:T.map(r=>({x:r.ts,y:r.spo2}))}],{min:85,max:100,minRange:5});
+    chart($("dTemp"),[{color:"#dc2626",data:T.map(r=>({x:r.ts,y:r.obj}))}],{minRange:2,dec:1});
+    chart($("dRisk"),[{color:"#7c3aed",data:d.predictions.map(q=>({x:q.ts,y:q.risk*100}))}],{min:0,minRange:10,hline:d.alert_threshold*100,dec:0});
+    let ar="<tr><th>Time</th><th>Type</th><th>Message</th></tr>";
+    d.alerts.forEach(a=>{ar+=`<tr><td>${fmtDT(a.ts)}</td><td><span class="pill ${a.level==="HIGH"?"bad":"warn"}">${esc(a.type)}</span></td><td>${esc(a.message)}</td></tr>`;});
+    if(!d.alerts.length)ar+="<tr><td colspan=3 class='mute'>No alerts in this test.</td></tr>";
+    $("dAlerts").innerHTML=ar;
+    $("sessDetail").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){alert("Could not open test: "+e.message);}
+}
+function closeDetail(){OPEN_ID=null;$("sessDetail").style.display="none";}
+async function editSession(id){
+  const s=SESS[id];if(!s)return;
+  const label=prompt("Patient / subject ID (not a real name):",s.label);if(label===null)return;
+  const note=prompt("Note:",s.note||"");if(note===null)return;
+  try{await POST("/api/sessions/update",{id,label,note});}catch(e){alert(e.message);}
+  loadSessions();if(OPEN_ID===id)viewSession(id);
+}
+async function delSession(id){
+  const s=SESS[id];if(!s)return;
+  if(!confirm(`Permanently delete test #${id} "${s.label}" and all its saved readings, predictions and alerts?\nThis cannot be undone. (Export CSV first if you need a copy.)`))return;
+  try{await POST("/api/sessions/delete",{id});}catch(e){alert(e.message);}
+  if(OPEN_ID===id)closeDetail();loadSessions();
+}
+setInterval(()=>{if(view==="hist")loadSessions();},5000);
+window.addEventListener("resize",()=>{if(view==="hist"&&OPEN_ID!=null)viewSession(OPEN_ID);});
+</script>
+</body></html>

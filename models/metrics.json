@@ -1,0 +1,246 @@
+{
+  "meta": {
+    "dataset": "PhysioNet/Computing in Cardiology Challenge 2019 (training sets A and B)",
+    "dataset_url": "https://physionet.org/content/challenge-2019/1.0.0/",
+    "dataset_doi": "10.13026/v64v-d857",
+    "label_definition": "Sepsis-3; target = sepsis onset within the next 6 hours (rows at/after onset removed)",
+    "horizon_hours": 6,
+    "input_signals": [
+      "HR",
+      "O2Sat",
+      "Temp"
+    ],
+    "features": [
+      "HR_cur",
+      "HR_mean6",
+      "HR_std6",
+      "HR_min6",
+      "HR_max6",
+      "HR_d1",
+      "HR_d3",
+      "O2Sat_cur",
+      "O2Sat_mean6",
+      "O2Sat_std6",
+      "O2Sat_min6",
+      "O2Sat_max6",
+      "O2Sat_d1",
+      "O2Sat_d3",
+      "Temp_cur",
+      "Temp_mean6",
+      "Temp_std6",
+      "Temp_min6",
+      "Temp_max6",
+      "Temp_d1",
+      "Temp_d3"
+    ],
+    "window_bins": 6,
+    "fill_limit_bins": 8,
+    "split": "patient-level: hospital A 70/15/15 train/val/test; hospital B external test",
+    "threshold_mode": "specificity",
+    "target_specificity_for_threshold": 0.9,
+    "target_sensitivity_for_threshold": 0.7,
+    "alert_threshold": 0.02,
+    "alternative_thresholds_(chosen_on_validation)": {
+      "specificity_80": 0.0196078431372549,
+      "specificity_90": 0.02,
+      "specificity_95": 0.029827315541601257,
+      "sensitivity_50": 0.016497343648056665,
+      "sensitivity_70": 0.011473361354083835
+    },
+    "model_hyperparameters": {
+      "learning_rate": 0.05,
+      "max_leaf_nodes": 31,
+      "min_samples_leaf": 200,
+      "l2_regularization": 1.0
+    },
+    "split_counts": {
+      "train": {
+        "patients": 13990,
+        "rows": 467607,
+        "positive_rows": 6424
+      },
+      "validation": {
+        "patients": 2998,
+        "rows": 101542,
+        "positive_rows": 1373
+      },
+      "internal_test_A": {
+        "patients": 2999,
+        "rows": 103323
+      },
+      "external_test_B": {
+        "patients": 19834,
+        "rows": 645499
+      }
+    },
+    "boosting_iterations": 15,
+    "trained_at": "2026-10-31T12:21:10",
+    "sklearn_version": "1.9.1",
+    "sample_patients_limit": null,
+    "disclaimer": "Educational/research prototype. Not clinically validated."
+  },
+  "results": [
+    {
+      "set": "internal_test_hospital_A_unseen_patients",
+      "rows": 103323,
+      "patients": 2999,
+      "positive_rows": 1354,
+      "prevalence": 0.01310453626007762,
+      "auroc": 0.6290134982229445,
+      "auprc": 0.02260981464944006,
+      "auprc_baseline_(prevalence)": 0.01310453626007762,
+      "brier": 0.012896814828939172,
+      "ece_10bin": 0.0003547058474492569,
+      "auroc_95ci": [
+        0.5934000188344307,
+        0.6562613956651414
+      ],
+      "auprc_95ci": [
+        0.018839379734390167,
+        0.026429106851490015
+      ],
+      "threshold": 0.02,
+      "row_sensitivity": 0.1536189069423929,
+      "row_specificity": 0.9420412086026145,
+      "row_precision": 0.03399803857469761,
+      "row_npv": 0.9882104829998457,
+      "septic_patients": 251,
+      "septic_patients_with_alarm_before_onset": 0.47808764940239046,
+      "false_alarm_rows_per_24h_nonseptic": 1.2906464084650344,
+      "nonseptic_patients_with_any_alarm": 0.27692867540029115,
+      "operating_points": {
+        "specificity_80": {
+          "threshold": 0.0196078431372549,
+          "row_sensitivity": 0.26809453471196454,
+          "row_specificity": 0.8818954780374427,
+          "row_precision": 0.029260035466709657,
+          "septic_patients_with_alarm_before_onset": 0.6055776892430279,
+          "nonseptic_patients_with_any_alarm": 0.4090247452692867,
+          "false_alarm_rows_per_24h_nonseptic": 2.63691243301906
+        },
+        "specificity_90": {
+          "threshold": 0.02,
+          "row_sensitivity": 0.1536189069423929,
+          "row_specificity": 0.9420412086026145,
+          "row_precision": 0.03399803857469761,
+          "septic_patients_with_alarm_before_onset": 0.47808764940239046,
+          "nonseptic_patients_with_any_alarm": 0.27692867540029115,
+          "false_alarm_rows_per_24h_nonseptic": 1.2906464084650344
+        },
+        "specificity_95": {
+          "threshold": 0.029827315541601257,
+          "row_sensitivity": 0.1137370753323486,
+          "row_specificity": 0.9616452058959095,
+          "row_precision": 0.03788437884378844,
+          "septic_patients_with_alarm_before_onset": 0.4342629482071713,
+          "nonseptic_patients_with_any_alarm": 0.22634643377001457,
+          "false_alarm_rows_per_24h_nonseptic": 0.8603405005765448
+        },
+        "sensitivity_50": {
+          "threshold": 0.016497343648056665,
+          "row_sensitivity": 0.5221565731166913,
+          "row_specificity": 0.6793339152095245,
+          "row_precision": 0.021164496332884298,
+          "septic_patients_with_alarm_before_onset": 0.8207171314741036,
+          "nonseptic_patients_with_any_alarm": 0.6844978165938864,
+          "false_alarm_rows_per_24h_nonseptic": 7.328766194126025
+        },
+        "sensitivity_70": {
+          "threshold": 0.011473361354083835,
+          "row_sensitivity": 0.7171344165435746,
+          "row_specificity": 0.459110121703655,
+          "row_precision": 0.01730066815144766,
+          "septic_patients_with_alarm_before_onset": 0.9083665338645418,
+          "nonseptic_patients_with_any_alarm": 0.839155749636099,
+          "false_alarm_rows_per_24h_nonseptic": 12.631350471410162
+        }
+      }
+    },
+    {
+      "set": "external_test_hospital_B",
+      "rows": 645499,
+      "patients": 19834,
+      "positive_rows": 5406,
+      "prevalence": 0.008374916150141208,
+      "auroc": 0.6896087620173262,
+      "auprc": 0.01921590780365054,
+      "auprc_baseline_(prevalence)": 0.008374916150141208,
+      "brier": 0.008285277387261031,
+      "ece_10bin": 0.003962296210776138,
+      "auroc_95ci": [
+        0.6766144549207861,
+        0.7018606234783763
+      ],
+      "auprc_95ci": [
+        0.01806122778423082,
+        0.02090474370099927
+      ],
+      "threshold": 0.02,
+      "row_sensitivity": 0.13725490196078433,
+      "row_specificity": 0.9655503184693475,
+      "row_precision": 0.03255385425349888,
+      "row_npv": 0.992510109104457,
+      "septic_patients": 1044,
+      "septic_patients_with_alarm_before_onset": 0.4722222222222222,
+      "false_alarm_rows_per_24h_nonseptic": 0.7505426972819274,
+      "nonseptic_patients_with_any_alarm": 0.17285790313996807,
+      "operating_points": {
+        "specificity_80": {
+          "threshold": 0.0196078431372549,
+          "row_sensitivity": 0.25397706252312247,
+          "row_specificity": 0.9236501570865484,
+          "row_precision": 0.027326645967677733,
+          "septic_patients_with_alarm_before_onset": 0.5842911877394636,
+          "nonseptic_patients_with_any_alarm": 0.2810537519957424,
+          "false_alarm_rows_per_24h_nonseptic": 1.6901173041448825
+        },
+        "specificity_90": {
+          "threshold": 0.02,
+          "row_sensitivity": 0.13725490196078433,
+          "row_specificity": 0.9655503184693475,
+          "row_precision": 0.03255385425349888,
+          "septic_patients_with_alarm_before_onset": 0.4722222222222222,
+          "nonseptic_patients_with_any_alarm": 0.17285790313996807,
+          "false_alarm_rows_per_24h_nonseptic": 0.7505426972819274
+        },
+        "specificity_95": {
+          "threshold": 0.029827315541601257,
+          "row_sensitivity": 0.10858305586385497,
+          "row_specificity": 0.9762331411216808,
+          "row_precision": 0.037151898734177215,
+          "septic_patients_with_alarm_before_onset": 0.40804597701149425,
+          "nonseptic_patients_with_any_alarm": 0.13794571580627993,
+          "false_alarm_rows_per_24h_nonseptic": 0.5153229176221197
+        },
+        "sensitivity_50": {
+          "threshold": 0.016497343648056665,
+          "row_sensitivity": 0.5615982241953386,
+          "row_specificity": 0.7201953466136952,
+          "row_precision": 0.016668771309508775,
+          "septic_patients_with_alarm_before_onset": 0.8208812260536399,
+          "nonseptic_patients_with_any_alarm": 0.6038850452368281,
+          "false_alarm_rows_per_24h_nonseptic": 6.410819294544492
+        },
+        "sensitivity_70": {
+          "threshold": 0.011473361354083835,
+          "row_sensitivity": 0.7432482426933037,
+          "row_specificity": 0.5136191147223919,
+          "row_precision": 0.012741519659295951,
+          "septic_patients_with_alarm_before_onset": 0.9022988505747126,
+          "nonseptic_patients_with_any_alarm": 0.7637573177221927,
+          "false_alarm_rows_per_24h_nonseptic": 11.35385901081318
+        }
+      }
+    }
+  ],
+  "baseline_logistic_regression": {
+    "internal_test_A": {
+      "auroc": 0.596755866646006,
+      "auprc": 0.02103426828426765
+    },
+    "external_test_B": {
+      "auroc": 0.6514548274989121,
+      "auprc": 0.018765863411342402
+    }
+  }
+}
